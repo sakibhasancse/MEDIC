@@ -82,12 +82,14 @@ export class PrescriptionService {
       .findById(prescriptionId)
       .populate('doctorId')
       .populate('patientId')
+      .populate('hospitalId')
       .exec();
 
     if (!prescription) throw new Error('Prescription not found');
 
     const doctor = prescription.doctorId as any;
     const patient = prescription.patientId as any;
+    const hospital = prescription.hospitalId as any;
 
     // Create uploads directory if it doesn't exist
     const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -98,17 +100,27 @@ export class PrescriptionService {
     const pdfPath = path.join(uploadsDir, `${prescription.prescriptionNumber}.pdf`);
 
     // Generate HTML content
-    const html = this.generateHTMLTemplate(prescription, doctor, patient);
+    const html = this.generateHTMLTemplate(prescription, doctor, patient, hospital);
 
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    // Use hospital print settings if available, otherwise default
+    const printSettings = hospital?.printSettings || {};
+
     await page.pdf({
       path: pdfPath,
-      format: 'A4',
+      format: (printSettings.paperSize as any) || 'A4',
       printBackground: true,
-      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
+      margin: {
+        top: printSettings.marginTop || '20px',
+        right: printSettings.marginRight || '20px',
+        bottom: printSettings.marginBottom || '20px',
+        left: printSettings.marginLeft || '20px',
+      },
+      landscape: printSettings.orientation === 'landscape',
     });
     await browser.close();
 
@@ -119,8 +131,101 @@ export class PrescriptionService {
     return pdfPath;
   }
 
-  private generateHTMLTemplate(prescription: any, doctor: any, patient: any): string {
+  private generateHTMLTemplate(prescription: any, doctor: any, patient: any, hospital: any): string {
     const isBangla = prescription.language === 'bn';
+    const doctorInfo = hospital?.doctorInfo || {};
+    const headerStructured = hospital?.headerStructured || {};
+    const footerSettings = hospital?.footerSettings || {};
+    const printLayout = hospital?.printLayout || {
+      leftColumn: ['chiefComplaint', 'historyOfPresentIllness', 'physicalExamination', 'vitalSigns', 'tests', 'advice'],
+      rightColumn: ['diagnosis', 'medicines'],
+    };
+
+    // Helper to render sections
+    const renderSection = (sectionName: string) => {
+      switch (sectionName) {
+        case 'chiefComplaint':
+          return prescription.chiefComplaint ? `
+            <div class="section">
+              <div class="section-title">Chief Complaint (C/C)</div>
+              <p>${prescription.chiefComplaint}</p>
+            </div>
+          ` : '';
+        case 'historyOfPresentIllness':
+          return prescription.historyOfPresentIllness ? `
+            <div class="section">
+              <div class="section-title">History of Present Illness</div>
+              <p>${prescription.historyOfPresentIllness}</p>
+            </div>
+          ` : '';
+        case 'physicalExamination':
+          return prescription.physicalExamination ? `
+            <div class="section">
+              <div class="section-title">Physical Examination</div>
+              <p>${prescription.physicalExamination}</p>
+            </div>
+          ` : '';
+        case 'vitalSigns':
+          return prescription.vitalSigns && Object.values(prescription.vitalSigns).some(v => v) ? `
+            <div class="section">
+              <div class="section-title">Vital Signs</div>
+              <div class="vital-signs-grid">
+                ${prescription.vitalSigns.bloodPressure ? `<div><strong>BP:</strong> ${prescription.vitalSigns.bloodPressure}</div>` : ''}
+                ${prescription.vitalSigns.pulse ? `<div><strong>Pulse:</strong> ${prescription.vitalSigns.pulse}</div>` : ''}
+                ${prescription.vitalSigns.temperature ? `<div><strong>Temp:</strong> ${prescription.vitalSigns.temperature}</div>` : ''}
+                ${prescription.vitalSigns.weight ? `<div><strong>Weight:</strong> ${prescription.vitalSigns.weight}</div>` : ''}
+                ${prescription.vitalSigns.height ? `<div><strong>Height:</strong> ${prescription.vitalSigns.height}</div>` : ''}
+              </div>
+            </div>
+          ` : '';
+        case 'tests':
+          return prescription.tests && prescription.tests.length > 0 ? `
+            <div class="section">
+              <div class="section-title">${isBangla ? 'পরীক্ষা' : 'Investigations'}</div>
+              <ul class="tests-list">
+                ${prescription.tests.map((test: string) => `<li>${test}</li>`).join('')}
+              </ul>
+            </div>
+          ` : '';
+        case 'advice':
+          return prescription.advice && prescription.advice.length > 0 ? `
+            <div class="section">
+              <div class="section-title">${isBangla ? 'পরামর্শ' : 'Advice'}</div>
+              <ul class="advice-list">
+                ${prescription.advice.map((adv: string) => `<li>${adv}</li>`).join('')}
+              </ul>
+            </div>
+          ` : '';
+        case 'diagnosis':
+          return prescription.diagnosis ? `
+            <div class="section">
+              <div class="section-title">${isBangla ? 'রোগ নির্ণয়' : 'Diagnosis (O/E)'}</div>
+              <p>${prescription.diagnosis}</p>
+            </div>
+          ` : '';
+        case 'medicines':
+          return prescription.medicines && prescription.medicines.length > 0 ? `
+            <div class="section">
+              <div class="section-title" style="font-size: 24px; border: none; margin-bottom: 5px;">℞</div>
+              <div class="medicines-list">
+                ${prescription.medicines.map((med: any, index: number) => `
+                  <div class="medicine-item">
+                    <div class="medicine-name">
+                      ${index + 1}. ${med.name}
+                      ${med.genericName ? `<span class="medicine-generic">(${med.genericName})</span>` : ''}
+                    </div>
+                    <div class="medicine-details">
+                      ${med.dose} &nbsp;|&nbsp; ${med.duration || ''} &nbsp;|&nbsp; ${med.instructions || ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : '';
+        default:
+          return '';
+      }
+    };
 
     return `
       <!DOCTYPE html>
@@ -134,61 +239,65 @@ export class PrescriptionService {
           
           body {
             font-family: ${isBangla ? "'Noto Sans Bengali', sans-serif" : "'Inter', sans-serif"};
-            padding: 20px;
+            padding: 0;
             color: #1a1a1a;
+            font-size: ${hospital?.printSettings?.fontSize || '12px'};
+            line-height: 1.5;
           }
           
           .header {
-            text-align: center;
-            border-bottom: 3px solid #2563eb;
+            border-bottom: 2px solid #1a1a1a;
             padding-bottom: 15px;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
           }
           
-          .header h1 {
-            color: #2563eb;
+          .doctor-info-left {
+            flex: 1;
+          }
+
+          .doctor-info-right {
+            flex: 1;
+            text-align: right;
+          }
+          
+          .doctor-info h1 {
+            color: #1a1a1a;
             font-size: 24px;
             margin-bottom: 5px;
+            font-weight: 700;
           }
           
-          .header p {
-            color: #666;
+          .doctor-info p {
+            color: #4a4a4a;
             font-size: 12px;
             margin: 2px 0;
           }
-          
-          .rx-number {
-            text-align: right;
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 15px;
+
+          .header-logo {
+            max-height: 80px;
+            max-width: 150px;
+            object-fit: contain;
           }
           
           .patient-info {
-            background: #f8fafc;
-            padding: 15px;
-            border-radius: 8px;
+            background: #f3f4f6;
+            padding: 10px 15px;
+            border-radius: 6px;
             margin-bottom: 20px;
-          }
-          
-          .patient-info h3 {
-            color: #2563eb;
-            margin-bottom: 10px;
-            font-size: 16px;
-          }
-          
-          .info-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
+            font-size: 12px;
           }
           
-          .info-item {
-            font-size: 13px;
-          }
-          
-          .info-item strong {
-            color: #1a1a1a;
+          .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr; /* Left column narrower than right */
+            gap: 30px;
+            min-height: 500px;
           }
           
           .section {
@@ -196,201 +305,191 @@ export class PrescriptionService {
           }
           
           .section-title {
-            color: #2563eb;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #e5e7eb;
+            color: #1a1a1a;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           
-          .medicines-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
+          .vital-signs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            font-size: 11px;
           }
           
-          .medicines-table th {
-            background: #2563eb;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-size: 13px;
-          }
-          
-          .medicines-table td {
-            padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 13px;
-          }
-          
-          .medicines-table tr:hover {
-            background: #f8fafc;
-          }
-          
-          .advice-list, .tests-list {
+          .tests-list, .advice-list {
             list-style: none;
             padding-left: 0;
           }
           
-          .advice-list li, .tests-list li {
-            padding: 8px 0;
-            padding-left: 20px;
+          .tests-list li, .advice-list li {
+            padding: 4px 0;
+            padding-left: 15px;
             position: relative;
-            font-size: 13px;
           }
           
-          .advice-list li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #2563eb;
-            font-weight: bold;
+          .tests-list li:before { content: "•"; position: absolute; left: 0; font-weight: bold; }
+          .advice-list li:before { content: "›"; position: absolute; left: 0; font-weight: bold; }
+          
+          .medicine-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
           }
           
-          .tests-list li:before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            color: #2563eb;
-            font-weight: bold;
+          .medicine-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+          }
+          
+          .medicine-generic {
+            font-weight: 400;
+            font-size: 11px;
+            color: #666;
+            font-style: italic;
+            margin-left: 5px;
+          }
+          
+          .medicine-details {
+            font-size: 12px;
+            color: #4a4a4a;
           }
           
           .footer {
             margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
+            padding-top: 15px;
+            border-top: 2px solid #1a1a1a;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            font-size: 11px;
+            align-items: end;
           }
           
-          .signature {
-            text-align: right;
+          .footer-left {
+            text-align: left;
           }
           
-          .signature img {
-            max-width: 150px;
-            margin-bottom: 5px;
-          }
-          
-          .qr-code {
+          .footer-center {
             text-align: center;
           }
           
-          .qr-code img {
-            width: 100px;
-            height: 100px;
+          .footer-right {
+            text-align: right;
+          }
+
+          .signature-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 40px;
+            margin-bottom: 10px;
+          }
+
+          .signature-box {
+            text-align: center;
+            min-width: 200px;
+          }
+
+          .signature-img {
+            height: 60px;
+            object-fit: contain;
+            margin-bottom: 5px;
+          }
+
+          .signature-line {
+            border-top: 1px solid #1a1a1a;
+            padding-top: 5px;
+            font-weight: 600;
           }
           
-          .qr-code p {
-            font-size: 10px;
-            color: #666;
-            margin-top: 5px;
+          .footer-logo {
+            height: 40px;
+            object-fit: contain;
+            margin-bottom: 5px;
           }
         </style>
       </head>
       <body>
+        <!-- Header -->
         <div class="header">
-          ${doctor.prescriptionHeader?.clinicName ? `<h1>${doctor.prescriptionHeader.clinicName}</h1>` : ''}
-          ${doctor.prescriptionHeader?.address ? `<p>${doctor.prescriptionHeader.address}</p>` : ''}
-          ${doctor.prescriptionHeader?.phone ? `<p>Phone: ${doctor.prescriptionHeader.phone}</p>` : ''}
-          ${doctor.prescriptionHeader?.email ? `<p>Email: ${doctor.prescriptionHeader.email}</p>` : ''}
-          <h2 style="margin-top: 10px;">${doctor.name}</h2>
-          ${doctor.specialization ? `<p>${doctor.specialization}</p>` : ''}
-        </div>
-        
-        <div class="rx-number">
-          <strong>Rx No:</strong> ${prescription.prescriptionNumber} | 
-          <strong>Date:</strong> ${new Date(prescription.createdAt).toLocaleDateString()}
-        </div>
-        
-        <div class="patient-info">
-          <h3>${isBangla ? 'রোগীর তথ্য' : 'Patient Information'}</h3>
-          <div class="info-grid">
-            <div class="info-item"><strong>${isBangla ? 'নাম' : 'Name'}:</strong> ${patient.name}</div>
-            <div class="info-item"><strong>${isBangla ? 'বয়স' : 'Age'}:</strong> ${patient.age || 'N/A'}</div>
-            <div class="info-item"><strong>${isBangla ? 'ফোন' : 'Phone'}:</strong> ${patient.phone}</div>
-            <div class="info-item"><strong>${isBangla ? 'লিঙ্গ' : 'Gender'}:</strong> ${patient.gender || 'N/A'}</div>
-          </div>
-        </div>
-        
-        ${prescription.diagnosis ? `
-          <div class="section">
-            <div class="section-title">${isBangla ? 'রোগ নির্ণয়' : 'Diagnosis'}</div>
-            <p>${prescription.diagnosis}</p>
-          </div>
-        ` : ''}
-        
-        ${prescription.medicines && prescription.medicines.length > 0 ? `
-          <div class="section">
-            <div class="section-title">Rx</div>
-            <table class="medicines-table">
-              <thead>
-                <tr>
-                  <th>${isBangla ? 'ওষুধের নাম' : 'Medicine'}</th>
-                  <th>${isBangla ? 'মাত্রা' : 'Dose'}</th>
-                  <th>${isBangla ? 'সময়কাল' : 'Duration'}</th>
-                  <th>${isBangla ? 'নির্দেশনা' : 'Instructions'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${prescription.medicines.map((med: any) => `
-                  <tr>
-                    <td><strong>${med.name}</strong>${med.genericName ? `<br><small>${med.genericName}</small>` : ''}</td>
-                    <td>${med.dose}</td>
-                    <td>${med.duration || '-'}</td>
-                    <td>${med.instructions || '-'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        ` : ''}
-        
-        ${prescription.advice && prescription.advice.length > 0 ? `
-          <div class="section">
-            <div class="section-title">${isBangla ? 'পরামর্শ' : 'Advice'}</div>
-            <ul class="advice-list">
-              ${prescription.advice.map((adv: string) => `<li>${adv}</li>`).join('')}
-            </ul>
-          </div>
-        ` : ''}
-        
-        ${prescription.tests && prescription.tests.length > 0 ? `
-          <div class="section">
-            <div class="section-title">${isBangla ? 'পরীক্ষা' : 'Tests'}</div>
-            <ul class="tests-list">
-              ${prescription.tests.map((test: string) => `<li>${test}</li>`).join('')}
-            </ul>
-          </div>
-        ` : ''}
-        
-        ${prescription.nextVisit ? `
-          <div class="section">
-            <div class="section-title">${isBangla ? 'পরবর্তী ভিজিট' : 'Next Visit'}</div>
-            <p>${new Date(prescription.nextVisit).toLocaleDateString()}</p>
-          </div>
-        ` : ''}
-        
-        <div class="footer">
-          <div class="qr-code">
-            <img src="${prescription.qrCode}" alt="QR Code" />
-            <p>${isBangla ? 'যাচাই করতে স্ক্যান করুন' : 'Scan to verify'}</p>
+          <!-- Left: Bangla Info -->
+          <div class="doctor-info-left doctor-info">
+            ${doctorInfo.nameInBangla ? `<h1>${doctorInfo.nameInBangla}</h1>` : ''}
           </div>
           
-          <div class="signature">
-            ${doctor.signature ? `<img src="${doctor.signature}" alt="Signature" />` : ''}
-            <p><strong>${doctor.name}</strong></p>
-            ${doctor.specialization ? `<p>${doctor.specialization}</p>` : ''}
+          <!-- Right: English Info -->
+          <div class="doctor-info-right doctor-info">
+            ${doctorInfo.name ? `<h1>${doctorInfo.name}</h1>` : `<h1>${doctor.name}</h1>`}
+            ${doctorInfo.degrees && doctorInfo.degrees.length > 0 ? `<p>${doctorInfo.degrees.join(', ')}</p>` : ''}
+            ${doctorInfo.bmdcNumber ? `<p>BMDC Reg: ${doctorInfo.bmdcNumber}</p>` : ''}
+            ${doctorInfo.emails && doctorInfo.emails.length > 0 ? `<p>${doctorInfo.emails.join(' | ')}</p>` : ''}
           </div>
         </div>
         
-        ${doctor.prescriptionFooter?.text ? `
-          <div style="text-align: center; margin-top: 20px; font-size: 11px; color: #666;">
-            ${doctor.prescriptionFooter.text}
+        <!-- Patient Info -->
+        <div class="patient-info">
+          <div><strong>${isBangla ? 'নাম' : 'Name'}:</strong> ${patient.name}</div>
+          <div><strong>${isBangla ? 'বয়স' : 'Age'}:</strong> ${patient.age || 'N/A'}</div>
+          <div><strong>${isBangla ? 'লিঙ্গ' : 'Gender'}:</strong> ${patient.gender || 'N/A'}</div>
+          <div><strong>${isBangla ? 'তারিখ' : 'Date'}:</strong> ${new Date(prescription.createdAt).toLocaleDateString()}</div>
+          ${patient.phone ? `<div><strong>Phone:</strong> ${patient.phone}</div>` : ''}
+        </div>
+        
+        <!-- Main Content (2 Columns) -->
+        <div class="main-content">
+          <!-- Left Column -->
+          <div class="left-column">
+            ${printLayout.leftColumn.map((section: string) => renderSection(section)).join('')}
+          </div>
+          
+          <!-- Right Column -->
+          <div class="right-column">
+            ${printLayout.rightColumn.map((section: string) => renderSection(section)).join('')}
+          </div>
+        </div>
+        
+        <!-- Signature -->
+        ${hospital.signature ? `
+          <div class="signature-section">
+            <div class="signature-box">
+              <img src="${hospital.signature}" class="signature-img" alt="Signature" />
+              <div class="signature-line">${doctorInfo.name || doctor.name}</div>
+            </div>
           </div>
         ` : ''}
+        
+        <!-- Footer -->
+        <div class="footer">
+          <div class="footer-left">
+            ${headerStructured.logo ? `<img src="${headerStructured.logo}" class="footer-logo" alt="Logo" />` : ''}
+            ${headerStructured.clinicName ? `<strong>${headerStructured.clinicName}</strong><br>` : ''}
+            ${headerStructured.address ? `${headerStructured.address}<br>` : ''}
+            ${headerStructured.phone ? `Phone: ${headerStructured.phone}` : ''}
+          </div>
+          
+          <div class="footer-center">
+            ${prescription.nextVisitDuration ? `
+              <div style="font-weight: bold; font-size: 14px; color: #2563eb;">
+                Next visit after ${prescription.nextVisitDuration} days
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="footer-right">
+            ${footerSettings.showTime ? `
+              <div style="font-weight: bold; font-size: 14px; color: #16a34a;">
+                Show Time: ${footerSettings.showTime}
+              </div>
+            ` : ''}
+            <div style="margin-top: 5px;">
+              <img src="${prescription.qrCode}" alt="QR" style="width: 40px; height: 40px;" />
+            </div>
+          </div>
+        </div>
       </body>
       </html>
     `;

@@ -61,23 +61,17 @@ export class Prescription {
   @Prop()
   diagnosis: string;
 
-  @Prop({ type: [Medicine], default: [] })
-  medicines: Medicine[];
+  @Prop([String])
+  medicines: string[]; // Stores medicine IDs or names
 
-  @Prop({ type: [String], default: [] })
+  @Prop([String])
   advice: string[];
 
-  @Prop({ type: [String], default: [] })
+  @Prop([String])
   tests: string[];
 
   @Prop()
-  nextVisit: Date;
-
-  @Prop()
-  showTime: string; // Patient show time (e.g., "10 AM - 2 PM")
-
-  @Prop()
-  nextVisitDay: string; // Next visit day (e.g., "Sunday")
+  nextVisitDuration: string; // e.g., "20 days"
 
   @Prop({ default: 'en', enum: ['en', 'bn'] })
   language: string;

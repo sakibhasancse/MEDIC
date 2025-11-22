@@ -14,6 +14,7 @@ import { SettingsModule } from './settings/settings.module';
 import { HospitalModule } from './hospital/hospital.module';
 import { FeatureSettingsModule } from './feature-settings/feature-settings.module';
 import { StatsModule } from './stats/stats.module';
+import { PrintTemplateModule } from './print-template/print-template.module';
 
 @Module({
   imports: [
@@ -35,7 +36,9 @@ import { StatsModule } from './stats/stats.module';
     SettingsModule,
     HospitalModule,
     FeatureSettingsModule,
+    FeatureSettingsModule,
     StatsModule,
+    PrintTemplateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

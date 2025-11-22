@@ -14,6 +14,9 @@ export class Hospital {
   @Prop({ default: false })
   isDefault: boolean;
 
+  @Prop({ type: Types.ObjectId, ref: 'PrintTemplate' })
+  defaultPrintTemplateId: Types.ObjectId;
+
   // Header Configuration
   @Prop({ default: 'structured', enum: ['richtext', 'structured'] })
   headerMode: string;

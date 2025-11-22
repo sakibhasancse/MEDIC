@@ -5,6 +5,7 @@ import { PrescriptionController } from './prescription.controller';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Patient, PatientSchema } from '../schemas/patient.schema';
+import { PrintTemplateModule } from '../print-template/print-template.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Patient, PatientSchema } from '../schemas/patient.schema';
       { name: User.name, schema: UserSchema },
       { name: Patient.name, schema: PatientSchema },
     ]),
+    PrintTemplateModule,
   ],
   providers: [PrescriptionService],
   controllers: [PrescriptionController],

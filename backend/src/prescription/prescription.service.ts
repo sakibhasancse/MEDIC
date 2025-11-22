@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Prescription, PrescriptionDocument } from '../schemas/prescription.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { Patient, PatientDocument } from '../schemas/patient.schema';
+import { PrintTemplateService } from '../print-template/print-template.service';
 import * as QRCode from 'qrcode';
 import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
@@ -15,6 +16,7 @@ export class PrescriptionService {
     @InjectModel(Prescription.name) private prescriptionModel: Model<PrescriptionDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Patient.name) private patientModel: Model<PatientDocument>,
+    private printTemplateService: PrintTemplateService,
   ) { }
 
   async create(doctorId: string, prescriptionData: any) {
@@ -99,8 +101,19 @@ export class PrescriptionService {
 
     const pdfPath = path.join(uploadsDir, `${prescription.prescriptionNumber}.pdf`);
 
+    // Fetch Template
+    let templateHtml = '';
+    let templateCss = '';
+    if (hospital?.defaultPrintTemplateId) {
+      const template = await this.printTemplateService.findOne(hospital.defaultPrintTemplateId);
+      if (template) {
+        templateHtml = template.htmlContent;
+        templateCss = template.cssContent;
+      }
+    }
+
     // Generate HTML content
-    const html = this.generateHTMLTemplate(prescription, doctor, patient, hospital);
+    const html = this.generateHTMLTemplate(prescription, doctor, patient, hospital, templateHtml, templateCss);
 
     // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
@@ -115,10 +128,10 @@ export class PrescriptionService {
       format: (printSettings.paperSize as any) || 'A4',
       printBackground: true,
       margin: {
-        top: printSettings.marginTop || '20px',
-        right: printSettings.marginRight || '20px',
-        bottom: printSettings.marginBottom || '20px',
-        left: printSettings.marginLeft || '20px',
+        top: printSettings.marginTop || '0px',
+        right: printSettings.marginRight || '0px',
+        bottom: printSettings.marginBottom || '0px',
+        left: printSettings.marginLeft || '0px',
       },
       landscape: printSettings.orientation === 'landscape',
     });
@@ -131,7 +144,7 @@ export class PrescriptionService {
     return pdfPath;
   }
 
-  private generateHTMLTemplate(prescription: any, doctor: any, patient: any, hospital: any): string {
+  private generateHTMLTemplate(prescription: any, doctor: any, patient: any, hospital: any, templateHtml?: string, templateCss?: string): string {
     const isBangla = prescription.language === 'bn';
     const doctorInfo = hospital?.doctorInfo || {};
     const headerStructured = hospital?.headerStructured || {};
@@ -226,6 +239,72 @@ export class PrescriptionService {
           return '';
       }
     };
+
+    // If template is provided, use it
+    if (templateHtml) {
+      let html = templateHtml;
+
+      // Generate Column Content
+      const leftContent = printLayout.leftColumn.map(s => renderSection(s)).join('');
+      const rightContent = printLayout.rightColumn.map(s => renderSection(s)).join('');
+
+      // Replace Placeholders
+      // Doctor
+      html = html.replace(/{{doctor.name}}/g, doctorInfo?.name || doctor.name || '');
+      html = html.replace(/{{doctor.degrees}}/g, doctorInfo?.degrees?.join(', ') || '');
+      html = html.replace(/{{doctor.bmdc}}/g, doctorInfo?.bmdcNumber ? `Reg: ${doctorInfo.bmdcNumber}` : '');
+
+      // Hospital
+      html = html.replace(/{{hospital.name}}/g, headerStructured?.clinicName || '');
+      html = html.replace(/{{hospital.address}}/g, headerStructured?.address || '');
+      html = html.replace(/{{hospital.phone}}/g, headerStructured?.phone || '');
+      html = html.replace(/{{hospital.email}}/g, headerStructured?.email || '');
+      if (headerStructured?.logo) {
+        html = html.replace(/{{hospital.logo}}/g, headerStructured.logo);
+      } else {
+        html = html.replace(/<img[^>]*src="{{hospital.logo}}"[^>]*>/g, '');
+      }
+
+      // Patient
+      html = html.replace(/{{patient.name}}/g, patient?.name || '');
+      html = html.replace(/{{patient.age}}/g, patient?.age ? `${patient.age}Y` : '');
+      html = html.replace(/{{patient.gender}}/g, patient?.gender || '');
+      html = html.replace(/{{date}}/g, new Date(prescription.createdAt).toLocaleDateString());
+
+      // Content
+      html = html.replace(/{{content.left}}/g, leftContent);
+      html = html.replace(/{{content.right}}/g, rightContent);
+
+      // Footer
+      html = html.replace(/{{nextVisit}}/g, prescription.nextVisitDuration ? `Next visit after ${prescription.nextVisitDuration} days` : '');
+      html = html.replace(/{{showTime}}/g, footerSettings?.showTime || '');
+
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600&family=Inter:wght@400;600;700&display=swap');
+            body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+            ${templateCss || ''}
+            /* Base styles for generated content */
+            .section { margin-bottom: 15px; }
+            .section-title { font-weight: bold; margin-bottom: 5px; text-decoration: underline; }
+            .tests-list, .advice-list { padding-left: 20px; margin: 0; }
+            .medicine-item { margin-bottom: 10px; }
+            .medicine-name { font-weight: bold; }
+            .medicine-generic { font-style: italic; font-size: 0.9em; color: #666; }
+            .medicine-details { margin-left: 10px; }
+            .vital-signs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+          </style>
+        </head>
+        <body>
+          ${html}
+        </body>
+        </html>
+      `;
+    }
 
     return `
       <!DOCTYPE html>

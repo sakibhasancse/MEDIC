@@ -19,6 +19,8 @@ import { GlobalHospitalModule } from './global-hospital/global-hospital.module';
 
 import { DoctorProfileModule } from './doctor-profile/doctor-profile.module';
 
+import { UploadModule } from './upload/upload.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,6 +46,7 @@ import { DoctorProfileModule } from './doctor-profile/doctor-profile.module';
     PrintTemplateModule,
     GlobalHospitalModule,
     DoctorProfileModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

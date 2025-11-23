@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { User, UserSchema } from '../schemas/user.schema';
+import { DoctorProfileModule } from '../doctor-profile/doctor-profile.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { User, UserSchema } from '../schemas/user.schema';
       secret: process.env.JWT_SECRET || 'asdasdasdasdasdsa',
       signOptions: { expiresIn: '7d' },
     }),
+    DoctorProfileModule,
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],

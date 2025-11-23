@@ -5,11 +5,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from '../schemas/user.schema';
 
+import { DoctorProfileService } from '../doctor-profile/doctor-profile.service';
+
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    private doctorProfileService: DoctorProfileService,
   ) { }
 
   async register(userData: {
@@ -27,6 +30,17 @@ export class AuthService {
     });
 
     await user.save();
+
+    // Create initial doctor profile
+    await this.doctorProfileService.createOrUpdate(user._id.toString(), {
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      specialization: user.specialization || '',
+      degrees: [],
+      degreesBangla: [],
+      socialLinks: {},
+    });
 
     const payload = { email: user.email, sub: user._id };
     return {

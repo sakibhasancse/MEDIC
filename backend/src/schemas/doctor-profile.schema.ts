@@ -36,7 +36,33 @@ export class DoctorProfile {
   signature: string; // base64
 
   @Prop()
-  avatar: string; // base64
+  avatar: string; // base64 or URL
+
+  @Prop()
+  profileImage: string; // URL from S3/MinIO
+
+  @Prop()
+  lifeHistory: string; // Rich text HTML
+
+  @Prop()
+  address: string;
+
+  @Prop()
+  chamber: string;
+
+  @Prop({ type: Object, default: {} })
+  socialLinks: {
+    facebook?: string;
+    linkedin?: string;
+    twitter?: string;
+    website?: string;
+  };
+
+  @Prop()
+  experience: number; // Years of experience
+
+  @Prop({ type: [String], default: [] })
+  hospitalAffiliations: string[];
 }
 
 export const DoctorProfileSchema = SchemaFactory.createForClass(DoctorProfile);

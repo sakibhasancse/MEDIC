@@ -81,6 +81,12 @@ export class Prescription {
 
   @Prop()
   pdfUrl: string;
+
+  @Prop({ unique: true, sparse: true })
+  shareToken: string;
+
+  @Prop()
+  shareTokenExpiry: Date;
 }
 
 export const PrescriptionSchema = SchemaFactory.createForClass(Prescription);
@@ -88,3 +94,4 @@ export const PrescriptionSchema = SchemaFactory.createForClass(Prescription);
 // Index for fast patient history retrieval
 PrescriptionSchema.index({ patientId: 1, createdAt: -1 });
 PrescriptionSchema.index({ prescriptionNumber: 1 });
+PrescriptionSchema.index({ shareToken: 1 });

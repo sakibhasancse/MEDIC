@@ -40,10 +40,7 @@ export class PrescriptionService {
       await prescription.save();
       console.log('Prescription saved:', prescription._id);
 
-      // Generate PDF
-      console.log('Generating PDF...');
-      await this.generatePDF(prescription._id.toString());
-      console.log('PDF generated successfully');
+      // PDF generation removed - will be generated on-demand when explicitly requested
 
       return prescription;
     } catch (error) {
@@ -57,6 +54,7 @@ export class PrescriptionService {
       .findById(id)
       .populate('doctorId')
       .populate('patientId')
+      .populate('hospitalId')
       .exec();
   }
 
@@ -94,6 +92,88 @@ export class PrescriptionService {
       .sort({ createdAt: -1 })
       .populate('doctorId')
       .exec();
+  }
+
+  async update(id: string, updateData: any) {
+    try {
+      const prescription = await this.prescriptionModel.findById(id);
+      if (!prescription) {
+        throw new Error('Prescription not found');
+      }
+
+      // Update fields
+      Object.assign(prescription, updateData);
+      await prescription.save();
+
+      return prescription;
+    } catch (error) {
+      console.error('Error updating prescription:', error);
+      throw error;
+    }
+  }
+
+  async delete(id: string) {
+    try {
+      const prescription = await this.prescriptionModel.findById(id);
+      if (!prescription) {
+        throw new Error('Prescription not found');
+      }
+
+      await this.prescriptionModel.findByIdAndDelete(id);
+      return { message: 'Prescription deleted successfully', id };
+    } catch (error) {
+      console.error('Error deleting prescription:', error);
+      throw error;
+    }
+  }
+
+  async generateShareToken(id: string) {
+    try {
+      const prescription = await this.prescriptionModel.findById(id);
+      if (!prescription) {
+        throw new Error('Prescription not found');
+      }
+
+      // Generate unique token
+      const token = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+      // Set expiry to 30 days from now
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 30);
+
+      prescription.shareToken = token;
+      prescription.shareTokenExpiry = expiry;
+      await prescription.save();
+
+      return {
+        token,
+        expiry,
+        url: `${process.env.APP_URL || 'http://localhost:3001'}/prescriptions/share/${token}`,
+      };
+    } catch (error) {
+      console.error('Error generating share token:', error);
+      throw error;
+    }
+  }
+
+  async findByShareToken(token: string) {
+    const prescription = await this.prescriptionModel
+      .findOne({ shareToken: token })
+      .populate('doctorId')
+      .populate('patientId')
+      .populate('hospitalId')
+      .exec();
+
+    if (!prescription) {
+      throw new Error('Prescription not found');
+    }
+
+    // Check if token has expired
+    if (prescription.shareTokenExpiry && new Date() > prescription.shareTokenExpiry) {
+      throw new Error('Share link has expired');
+    }
+
+    return prescription;
   }
 
   async generatePDF(prescriptionId: string) {

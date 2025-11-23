@@ -107,6 +107,19 @@ export class PrintTemplateService {
     };
   }
 
+  async delete(id: string): Promise<{ message: string; id: string }> {
+    const result = await this.printTemplateModel.findByIdAndDelete(id).exec();
+
+    if (!result) {
+      throw new Error('Template not found');
+    }
+
+    return {
+      message: 'Template deleted successfully',
+      id
+    };
+  }
+
   async seedDefaults() {
     const count = await this.printTemplateModel.countDocuments();
     if (count > 0) return;

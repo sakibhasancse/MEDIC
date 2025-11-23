@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
 import { PrintTemplateService } from './print-template.service';
 
 @Controller('print-templates')
@@ -43,6 +43,11 @@ export class PrintTemplateController {
   @Put(':id')
   update(@Param('id') id: string, @Body() updateDto: any) {
     return this.printTemplateService.update(id, updateDto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.printTemplateService.delete(id);
   }
 
   @Get(':id/preview-data')

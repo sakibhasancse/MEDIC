@@ -15,6 +15,12 @@ export class PrescriptionController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get()
+  async getAll(@Request() req) {
+    return this.prescriptionService.findAll(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.prescriptionService.findById(id);

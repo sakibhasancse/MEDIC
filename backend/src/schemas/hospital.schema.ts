@@ -27,7 +27,9 @@ export class Hospital {
   @Prop({ type: Object })
   headerStructured: {
     clinicName?: string;
+    clinicNameBangla?: string;
     address?: string;
+    addressBangla?: string;
     phone?: string;
     email?: string;
     logo?: string; // base64
@@ -58,6 +60,7 @@ export class Hospital {
   @Prop({ type: Object })
   footerStructured: {
     text: string;
+    textBangla?: string;
     additionalFields?: Array<{ label: string; value: string }>;
   };
 
@@ -67,9 +70,22 @@ export class Hospital {
     name: string;
     nameInBangla?: string;
     degrees: string[];
+    degreesBangla?: string[];
     emails: string[];
     bmdcNumber?: string;
   };
+
+  @Prop()
+  doctorInfoRichText: string;
+
+  @Prop()
+  doctorInfoRichTextBangla: string;
+
+  @Prop()
+  hospitalInfoRichText: string;
+
+  @Prop()
+  hospitalInfoRichTextBangla: string;
 
   // Footer Settings
   @Prop({ type: Object, default: {} })

@@ -61,8 +61,8 @@ export class Prescription {
   @Prop()
   diagnosis: string;
 
-  @Prop([String])
-  medicines: string[]; // Stores medicine IDs or names
+  @Prop([Medicine])
+  medicines: Medicine[];
 
   @Prop([String])
   advice: string[];

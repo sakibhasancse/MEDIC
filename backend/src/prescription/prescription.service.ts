@@ -20,27 +20,36 @@ export class PrescriptionService {
   ) { }
 
   async create(doctorId: string, prescriptionData: any) {
-    // Generate unique prescription number
-    const count = await this.prescriptionModel.countDocuments();
-    const prescriptionNumber = `RX${Date.now()}${count + 1}`;
+    try {
+      console.log('Creating prescription for doctor:', doctorId);
+      // Generate unique prescription number
+      const count = await this.prescriptionModel.countDocuments();
+      const prescriptionNumber = `RX${Date.now()}${count + 1}`;
 
-    // Generate QR code
-    const qrCodeUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify/${prescriptionNumber}`;
-    const qrCode = await QRCode.toDataURL(qrCodeUrl);
+      // Generate QR code
+      const qrCodeUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify/${prescriptionNumber}`;
+      const qrCode = await QRCode.toDataURL(qrCodeUrl);
 
-    const prescription = new this.prescriptionModel({
-      ...prescriptionData,
-      doctorId,
-      prescriptionNumber,
-      qrCode,
-    });
+      const prescription = new this.prescriptionModel({
+        ...prescriptionData,
+        doctorId,
+        prescriptionNumber,
+        qrCode,
+      });
 
-    await prescription.save();
+      await prescription.save();
+      console.log('Prescription saved:', prescription._id);
 
-    // Generate PDF
-    await this.generatePDF(prescription._id.toString());
+      // Generate PDF
+      console.log('Generating PDF...');
+      await this.generatePDF(prescription._id.toString());
+      console.log('PDF generated successfully');
 
-    return prescription;
+      return prescription;
+    } catch (error) {
+      console.error('Error creating prescription:', error);
+      throw error;
+    }
   }
 
   async findById(id: string) {
@@ -55,6 +64,14 @@ export class PrescriptionService {
     return this.prescriptionModel
       .findOne({ prescriptionNumber })
       .populate('doctorId')
+      .populate('patientId')
+      .exec();
+  }
+
+  async findAll(doctorId: string) {
+    return this.prescriptionModel
+      .find({ doctorId })
+      .sort({ createdAt: -1 })
       .populate('patientId')
       .exec();
   }
@@ -80,68 +97,76 @@ export class PrescriptionService {
   }
 
   async generatePDF(prescriptionId: string) {
-    const prescription = await this.prescriptionModel
-      .findById(prescriptionId)
-      .populate('doctorId')
-      .populate('patientId')
-      .populate('hospitalId')
-      .exec();
+    try {
+      const prescription = await this.prescriptionModel
+        .findById(prescriptionId)
+        .populate('doctorId')
+        .populate('patientId')
+        .populate('hospitalId')
+        .exec();
 
-    if (!prescription) throw new Error('Prescription not found');
+      if (!prescription) throw new Error('Prescription not found');
 
-    const doctor = prescription.doctorId as any;
-    const patient = prescription.patientId as any;
-    const hospital = prescription.hospitalId as any;
+      const doctor = prescription.doctorId as any;
+      const patient = prescription.patientId as any;
+      const hospital = prescription.hospitalId as any;
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const pdfPath = path.join(uploadsDir, `${prescription.prescriptionNumber}.pdf`);
-
-    // Fetch Template
-    let templateHtml = '';
-    let templateCss = '';
-    if (hospital?.defaultPrintTemplateId) {
-      const template = await this.printTemplateService.findOne(hospital.defaultPrintTemplateId);
-      if (template) {
-        templateHtml = template.htmlContent;
-        templateCss = template.cssContent;
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
+
+      const pdfPath = path.join(uploadsDir, `${prescription.prescriptionNumber}.pdf`);
+
+      // Fetch Template
+      let templateHtml = '';
+      let templateCss = '';
+      if (hospital?.defaultPrintTemplateId) {
+        const template = await this.printTemplateService.findOne(hospital.defaultPrintTemplateId);
+        if (template) {
+          templateHtml = template.htmlContent;
+          templateCss = template.cssContent;
+        }
+      }
+
+      // Generate HTML content
+      console.log('Generating HTML template...');
+      const html = this.generateHTMLTemplate(prescription, doctor, patient, hospital, templateHtml, templateCss);
+
+      // Generate PDF using Puppeteer
+      console.log('Launching Puppeteer...');
+      const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+
+      // Use hospital print settings if available, otherwise default
+      const printSettings = hospital?.printSettings || {};
+
+      console.log('Saving PDF...');
+      await page.pdf({
+        path: pdfPath,
+        format: (printSettings.paperSize as any) || 'A4',
+        printBackground: true,
+        margin: {
+          top: printSettings.marginTop || '0px',
+          right: printSettings.marginRight || '0px',
+          bottom: printSettings.marginBottom || '0px',
+          left: printSettings.marginLeft || '0px',
+        },
+        landscape: printSettings.orientation === 'landscape',
+      });
+      await browser.close();
+
+      // Update prescription with PDF URL
+      prescription.pdfUrl = `/uploads/${prescription.prescriptionNumber}.pdf`;
+      await prescription.save();
+
+      return pdfPath;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      throw error;
     }
-
-    // Generate HTML content
-    const html = this.generateHTMLTemplate(prescription, doctor, patient, hospital, templateHtml, templateCss);
-
-    // Generate PDF using Puppeteer
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-
-    // Use hospital print settings if available, otherwise default
-    const printSettings = hospital?.printSettings || {};
-
-    await page.pdf({
-      path: pdfPath,
-      format: (printSettings.paperSize as any) || 'A4',
-      printBackground: true,
-      margin: {
-        top: printSettings.marginTop || '0px',
-        right: printSettings.marginRight || '0px',
-        bottom: printSettings.marginBottom || '0px',
-        left: printSettings.marginLeft || '0px',
-      },
-      landscape: printSettings.orientation === 'landscape',
-    });
-    await browser.close();
-
-    // Update prescription with PDF URL
-    prescription.pdfUrl = `/uploads/${prescription.prescriptionNumber}.pdf`;
-    await prescription.save();
-
-    return pdfPath;
   }
 
   private generateHTMLTemplate(prescription: any, doctor: any, patient: any, hospital: any, templateHtml?: string, templateCss?: string): string {
@@ -254,11 +279,20 @@ export class PrescriptionService {
       html = html.replace(/{{doctor.degrees}}/g, doctorInfo?.degrees?.join(', ') || '');
       html = html.replace(/{{doctor.bmdc}}/g, doctorInfo?.bmdcNumber ? `Reg: ${doctorInfo.bmdcNumber}` : '');
 
+      // Doctor Rich Text
+      html = html.replace(/{{doctor.info_rich_text}}/g, hospital?.doctorInfoRichText || '');
+      html = html.replace(/{{doctor.info_rich_text_bangla}}/g, hospital?.doctorInfoRichTextBangla || '');
+
       // Hospital
       html = html.replace(/{{hospital.name}}/g, headerStructured?.clinicName || '');
       html = html.replace(/{{hospital.address}}/g, headerStructured?.address || '');
       html = html.replace(/{{hospital.phone}}/g, headerStructured?.phone || '');
       html = html.replace(/{{hospital.email}}/g, headerStructured?.email || '');
+
+      // Hospital Rich Text
+      html = html.replace(/{{hospital.info_rich_text}}/g, hospital?.hospitalInfoRichText || '');
+      html = html.replace(/{{hospital.info_rich_text_bangla}}/g, hospital?.hospitalInfoRichTextBangla || '');
+
       if (headerStructured?.logo) {
         html = html.replace(/{{hospital.logo}}/g, headerStructured.logo);
       } else {
@@ -502,7 +536,7 @@ export class PrescriptionService {
           
           <!-- Right: English Info -->
           <div class="doctor-info-right doctor-info">
-            ${doctorInfo.name ? `<h1>${doctorInfo.name}</h1>` : `<h1>${doctor.name}</h1>`}
+            ${doctorInfo.name ? `<h1>${doctorInfo.name}</h1>` : `<h1>${doctor?.name || ''}</h1>`}
             ${doctorInfo.degrees && doctorInfo.degrees.length > 0 ? `<p>${doctorInfo.degrees.join(', ')}</p>` : ''}
             ${doctorInfo.bmdcNumber ? `<p>BMDC Reg: ${doctorInfo.bmdcNumber}</p>` : ''}
             ${doctorInfo.emails && doctorInfo.emails.length > 0 ? `<p>${doctorInfo.emails.join(' | ')}</p>` : ''}
@@ -532,11 +566,11 @@ export class PrescriptionService {
         </div>
         
         <!-- Signature -->
-        ${hospital.signature ? `
+        ${hospital?.signature ? `
           <div class="signature-section">
             <div class="signature-box">
               <img src="${hospital.signature}" class="signature-img" alt="Signature" />
-              <div class="signature-line">${doctorInfo.name || doctor.name}</div>
+              <div class="signature-line">${doctorInfo.name || doctor?.name || ''}</div>
             </div>
           </div>
         ` : ''}

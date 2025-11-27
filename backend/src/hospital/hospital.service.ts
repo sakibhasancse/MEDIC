@@ -3,10 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Hospital, HospitalDocument } from '../schemas/hospital.schema';
 
+import { PrintTemplateService } from '../print-template/print-template.service';
+
 @Injectable()
 export class HospitalService {
   constructor(
     @InjectModel(Hospital.name) private hospitalModel: Model<HospitalDocument>,
+    private printTemplateService: PrintTemplateService,
   ) { }
 
   async create(doctorId: string, hospitalData: Partial<Hospital>) {
@@ -20,6 +23,14 @@ export class HospitalService {
         { doctorId, isDefault: true },
         { $set: { isDefault: false } }
       );
+    }
+
+    // If defaultPrintTemplateId is missing, assign the system default
+    if (!hospitalData.defaultPrintTemplateId) {
+      const defaultTemplate = await this.printTemplateService.findSystemDefault();
+      if (defaultTemplate) {
+        hospitalData.defaultPrintTemplateId = (defaultTemplate as any)._id.toString();
+      }
     }
 
     const hospital = new this.hospitalModel({

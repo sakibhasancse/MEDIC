@@ -30,6 +30,16 @@ export class PrintTemplateController {
     return this.printTemplateService.cloneWithColors(id, colorScheme);
   }
 
+  @Post(':id/customize')
+  customize(@Param('id') id: string, @Body('doctorId') doctorId: string) {
+    return this.printTemplateService.customize(id, doctorId);
+  }
+
+  @Post(':id/reset')
+  resetToDefault(@Param('id') id: string, @Body('doctorId') doctorId: string) {
+    return this.printTemplateService.resetToDefault(id, doctorId);
+  }
+
   @Get('doctor/:doctorId')
   findByDoctor(@Param('doctorId') doctorId: string) {
     return this.printTemplateService.findByDoctor(doctorId);

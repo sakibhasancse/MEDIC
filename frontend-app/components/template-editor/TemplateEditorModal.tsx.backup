@@ -1,0 +1,504 @@
+'use client';
+
+import { useState } from 'react';
+import ElementToolbox from './ElementToolbox';
+import StylePanel from './StylePanel';
+import { DndContext, DragEndEvent, useDroppable } from '@dnd-kit/core';
+import DraggableElement from './DraggableElement';
+import { printTemplateAPI } from '@/lib/api';
+import { templateDataService } from '@/lib/templateDataService';
+
+interface TemplateEditorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  templateId?: string;
+  hospitalData?: any;
+  printLayout?: any;
+  onPrintLayoutChange?: (layout: any) => void;
+}
+
+interface Element {
+  id: string;
+  type: 'text' | 'image' | 'logo' | 'placeholder' | 'line-horizontal' | 'line-vertical';
+  content: string;
+  dataField?: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  style: {
+    fontSize: number;
+    fontFamily: string;
+    color: string;
+    align: 'left' | 'center' | 'right';
+    bold: boolean;
+    italic: boolean;
+  };
+}
+
+export default function TemplateEditorModal({
+  isOpen,
+  onClose,
+  templateId,
+  hospitalData,
+  printLayout: initialPrintLayout,
+  onPrintLayoutChange,
+}: TemplateEditorModalProps) {
+  const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // All elements on one canvas
+  const [elements, setElements] = useState<Element[]>([]);
+  const [canvasBg, setCanvasBg] = useState('#ffffff');
+  
+  // Print layout settings
+  const [printLayout, setPrintLayout] = useState(initialPrintLayout || {
+    pageSize: 'A4',
+    orientation: 'portrait',
+    margins: { top: 20, right: 20, bottom: 20, left: 20 },
+    showBorders: false,
+  });
+  
+  // Selection state
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+
+  const { setNodeRef } = useDroppable({ id: 'main-canvas' });
+
+  if (!isOpen) return null;
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over, delta } = event;
+    
+    console.log('handleDragEnd:', { 
+      activeId: active.id, 
+      overId: over?.id, 
+      delta,
+      isToolbox: active.id.toString().startsWith('toolbox-'),
+      data: active.data.current 
+    });
+    
+    // Check if dragging from toolbox (creating new element)
+    if (active.id.toString().startsWith('toolbox-')) {
+      console.log('Dragging from toolbox, over:', over?.id);
+      if (over && over.id === 'main-canvas') {
+        const data = active.data.current;
+        const canvasRect = document.getElementById('main-canvas')?.getBoundingClientRect();
+        
+        console.log('Drop on canvas!', { data, canvasRect });
+        
+        if (canvasRect && data) {
+          // Calculate drop position relative to canvas
+          const dropX = event.activatorEvent ? 
+            (event.activatorEvent as MouseEvent).clientX - canvasRect.left : 50;
+          const dropY = event.activatorEvent ? 
+            (event.activatorEvent as MouseEvent).clientY - canvasRect.top : 50;
+          
+          console.log('Creating element at:', { dropX, dropY });
+          handleAddElement(data.type, data.dataField, dropX, dropY);
+        }
+      } else {
+        console.log('Not over canvas, over:', over?.id);
+      }
+      return;
+    }
+    
+    // Handle dragging existing elements (repositioning)
+    const elementId = active.id as string;
+    const updatedElements = elements.map((el) => {
+      if (el.id === elementId) {
+        return {
+          ...el,
+          position: {
+            x: Math.max(0, el.position.x + delta.x),
+            y: Math.max(0, el.position.y + delta.y),
+          },
+        };
+      }
+      return el;
+    });
+    
+    setElements(updatedElements);
+  };
+
+  const handleAddElement = (type: string, dataField?: string, x: number = 50, y: number = 50) => {
+    const isHorizontalLine = type === 'line-horizontal';
+    const isVerticalLine = type === 'line-vertical';
+    
+    const newElement: Element = {
+      id: `element-${Date.now()}`,
+      type: type as any,
+      content: dataField ? `{{${dataField}}}` : (isHorizontalLine || isVerticalLine ? '' : 'New Element'),
+      dataField,
+      position: { x, y },
+      size: { 
+        width: isHorizontalLine ? 600 : (isVerticalLine ? 2 : 200), 
+        height: isHorizontalLine ? 2 : (isVerticalLine ? 400 : 40) 
+      },
+      style: {
+        fontSize: isHorizontalLine || isVerticalLine ? 2 : 14,
+        fontFamily: 'Arial',
+        color: isHorizontalLine || isVerticalLine ? '#000000' : '#000000',
+        align: 'left',
+        bold: false,
+        italic: false,
+      },
+    };
+
+    setElements([...elements, newElement]);
+  };
+
+  const handleUpdateElement = (id: string, updates: Partial<Element>) => {
+    const updatedElements = elements.map((el) =>
+      el.id === id ? { ...el, ...updates } : el
+    );
+    setElements(updatedElements);
+  };
+
+  const handleDeleteElement = (id: string) => {
+    setElements(elements.filter((el) => el.id !== id));
+    if (selectedElementId === id) {
+      setSelectedElementId(null);
+    }
+  };
+
+  const getSelectedElement = () => {
+    if (!selectedElementId) return null;
+    return elements.find((el) => el.id === selectedElementId);
+  };
+
+  const handleStyleChange = (newStyle: any) => {
+    if (!selectedElementId) return;
+    
+    setElements(
+      elements.map((el) =>
+        el.id === selectedElementId ? { ...el, style: newStyle } : el
+      )
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const layout = {
+        elements,
+        background: { type: 'color', value: canvasBg },
+        printLayout,
+      };
+
+      if (templateId) {
+        await printTemplateAPI.updateLayout(templateId, layout);
+      }
+      
+      if (onPrintLayoutChange) {
+        onPrintLayoutChange(printLayout);
+      }
+      
+      alert('Template saved successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dummyData = templateDataService.getDummyData();
+
+  const canvasWidth = printLayout.pageSize === 'A4' ? 794 : 1123;
+  const canvasHeight = printLayout.orientation === 'portrait' ? 1123 : 794;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full h-full max-w-[98vw] max-h-[98vh] flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                🎨 Template Designer
+              </h2>
+              <p className="text-sm text-gray-600">
+                Design your complete prescription template on one canvas
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                  showPreview
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {showPreview ? '📝 Edit' : '👁️ Preview'}
+              </button>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white/50 rounded-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="flex-1 flex overflow-hidden">
+            {!showPreview ? (
+              <>
+                {/* Toolbox */}
+                <div className="w-64 overflow-y-auto border-r border-gray-200">
+                  <ElementToolbox onAddElement={handleAddElement} />
+                  
+                  {/* Print Layout Settings */}
+                  <div className="p-4 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">⚙️ Print Layout</h3>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Page Size</label>
+                        <select
+                          value={printLayout.pageSize}
+                          onChange={(e) => setPrintLayout({ ...printLayout, pageSize: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                        >
+                          <option value="A4">A4</option>
+                          <option value="A5">A5</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Orientation</label>
+                        <select
+                          value={printLayout.orientation}
+                          onChange={(e) => setPrintLayout({ ...printLayout, orientation: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                        >
+                          <option value="portrait">Portrait</option>
+                          <option value="landscape">Landscape</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Background</label>
+                        <input
+                          type="color"
+                          value={canvasBg}
+                          onChange={(e) => setCanvasBg(e.target.value)}
+                          className="w-full h-8 rounded border border-gray-300 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Canvas Area */}
+                <div className="flex-1 overflow-auto p-8 bg-gray-100">
+                  <div
+                    id="main-canvas"
+                    ref={setNodeRef}
+                    className="relative bg-white shadow-2xl mx-auto"
+                    style={{
+                      width: `${canvasWidth}px`,
+                      height: `${canvasHeight}px`,
+                      backgroundColor: canvasBg,
+                    }}
+                    onClick={() => setSelectedElementId(null)}
+                  >
+                    {elements.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">📄</div>
+                          <p className="text-sm">Click elements from the toolbox to add them</p>
+                          <p className="text-xs mt-1">Drag to position anywhere on the page</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {elements.map((element) => (
+                      <DraggableElement
+                        key={element.id}
+                        {...element}
+                        onUpdate={(updates) => handleUpdateElement(element.id, updates)}
+                        onDelete={() => handleDeleteElement(element.id)}
+                        isSelected={selectedElementId === element.id}
+                        onSelect={() => setSelectedElementId(element.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+            /* Preview Panel */
+            <div className="flex-1 overflow-y-auto p-8 bg-gray-100">
+              <div
+                className="bg-white shadow-2xl mx-auto relative"
+                style={{
+                  width: `${canvasWidth}px`,
+                  height: `${canvasHeight}px`,
+                  backgroundColor: canvasBg,
+                }}
+              >
+                {/* Render all designed elements */}
+                {elements.map((element) => {
+                  // Handle line elements
+                  if (element.type === 'line-horizontal') {
+                    return (
+                      <div
+                        key={element.id}
+                        style={{
+                          position: 'absolute',
+                          left: `${element.position.x}px`,
+                          top: `${element.position.y}px`,
+                          width: `${element.size.width}px`,
+                          height: `${element.style.fontSize || 2}px`,
+                          backgroundColor: element.style.color,
+                        }}
+                      />
+                    );
+                  }
+                  
+                  if (element.type === 'line-vertical') {
+                    return (
+                      <div
+                        key={element.id}
+                        style={{
+                          position: 'absolute',
+                          left: `${element.position.x}px`,
+                          top: `${element.position.y}px`,
+                          width: `${element.style.fontSize || 2}px`,
+                          height: `${element.size.height}px`,
+                          backgroundColor: element.style.color,
+                        }}
+                      />
+                    );
+                  }
+                  
+                  let displayContent = element.content;
+                  
+                  // Replace placeholders with actual data or dummy data
+                  if (element.dataField) {
+                    const field = element.dataField;
+                    
+                    // Doctor data
+                    if (field === 'doctor.name') displayContent = hospitalData?.doctorInfo?.name || 'Dr. John Doe';
+                    else if (field === 'doctor.degrees') displayContent = hospitalData?.doctorInfo?.degrees?.join(', ') || 'MBBS, FCPS';
+                    else if (field === 'doctor.email') displayContent = hospitalData?.doctorInfo?.email || 'doctor@example.com';
+                    else if (field === 'doctor.bmdc') displayContent = hospitalData?.doctorInfo?.bmdcNumber || 'A-12345';
+                    
+                    // Hospital data
+                    else if (field === 'hospital.name') displayContent = hospitalData?.name || 'City General Hospital';
+                    else if (field === 'hospital.address') displayContent = hospitalData?.headerStructured?.address || '123 Medical Road';
+                    else if (field === 'hospital.phone') displayContent = hospitalData?.headerStructured?.phone || '01712345678';
+                    
+                    // Patient data (dummy)
+                    else if (field === 'patient.name') displayContent = dummyData.patient.name;
+                    else if (field === 'patient.age') displayContent = `${dummyData.patient.age} years`;
+                    else if (field === 'patient.gender') displayContent = dummyData.patient.gender;
+                    else if (field === 'date') displayContent = new Date().toLocaleDateString();
+                    
+                    // Prescription sections (formatted)
+                    else if (field === 'medicines') {
+                      displayContent = dummyData.medicines.map((med, i) => 
+                        `${i + 1}. ${med.name} - ${med.dose}\n   ${med.instructions}`
+                      ).join('\n\n');
+                    }
+                    else if (field === 'advice') {
+                      displayContent = dummyData.advice.map((adv, i) => `${i + 1}. ${adv}`).join('\n');
+                    }
+                    else if (field === 'diagnosis') {
+                      displayContent = dummyData.diagnosis.join(', ');
+                    }
+                    else if (field === 'tests') {
+                      displayContent = dummyData.tests.map((test, i) => `${i + 1}. ${test}`).join('\n');
+                    }
+                  }
+                  
+                  return (
+                    <div
+                      key={element.id}
+                      style={{
+                        position: 'absolute',
+                        left: `${element.position.x}px`,
+                        top: `${element.position.y}px`,
+                        width: `${element.size.width}px`,
+                        minHeight: `${element.size.height}px`,
+                        fontSize: `${element.style.fontSize}px`,
+                        fontFamily: element.style.fontFamily,
+                        color: element.style.color,
+                        textAlign: element.style.align as any,
+                        fontWeight: element.style.bold ? 'bold' : 'normal',
+                        fontStyle: element.style.italic ? 'italic' : 'normal',
+                        whiteSpace: 'pre-wrap',
+                        wordWrap: 'break-word',
+                      }}
+                    >
+                      {displayContent}
+                    </div>
+                  );
+                })}
+                
+                {/* Show message if no elements */}
+                {elements.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">👁️</div>
+                      <p className="text-sm">No elements added yet</p>
+                      <p className="text-xs mt-1">Switch to Edit mode to add elements</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Style Panel - only show in edit mode */}
+          {!showPreview && (
+            <div className="w-80 overflow-y-auto border-l border-gray-200">
+              <StylePanel
+                selectedElement={getSelectedElement()}
+                onStyleChange={handleStyleChange}
+              />
+            </div>
+          )}
+        </DndContext>
+        </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            💡 Tip: Drag elements anywhere on the canvas, use print layout settings on the left
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 text-gray-600 hover:text-gray-900 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  Save Template
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

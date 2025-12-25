@@ -16,13 +16,12 @@ import { FeatureSettingsModule } from './feature-settings/feature-settings.modul
 import { StatsModule } from './stats/stats.module';
 import { PrintTemplateModule } from './print-template/print-template.module';
 import { GlobalHospitalModule } from './global-hospital/global-hospital.module';
-
 import { DoctorProfileModule } from './doctor-profile/doctor-profile.module';
-
 import { UploadModule } from './upload/upload.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { MessagesModule } from './messages/messages.module';
 import { MedicalHistoryModule } from './medical-history/medical-history.module';
+import { MedicalRecordsModule } from './medical-records/medical-records.module';
 
 @Module({
   imports: [
@@ -44,7 +43,6 @@ import { MedicalHistoryModule } from './medical-history/medical-history.module';
     SettingsModule,
     HospitalModule,
     FeatureSettingsModule,
-    FeatureSettingsModule,
     StatsModule,
     PrintTemplateModule,
     GlobalHospitalModule,
@@ -53,6 +51,7 @@ import { MedicalHistoryModule } from './medical-history/medical-history.module';
     AppointmentsModule,
     MessagesModule,
     MedicalHistoryModule,
+    MedicalRecordsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

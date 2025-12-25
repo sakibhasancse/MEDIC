@@ -69,6 +69,14 @@ export const prescriptionAPI = {
     api.post(`/prescriptions/${id}/refill`, { medicines }),
 };
 
+export const medicalRecordsAPI = {
+  getAll: () => api.get('/medical-records'),
+  upload: (data: FormData) => api.post('/medical-records', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id: string) => api.delete(`/medical-records/${id}`),
+};
+
 // Appointment API
 export const appointmentAPI = {
   getAll: () => api.get('/appointments/patient'),

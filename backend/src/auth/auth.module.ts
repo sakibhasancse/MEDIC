@@ -6,11 +6,15 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { User, UserSchema } from '../schemas/user.schema';
+import { Patient, PatientSchema } from '../schemas/patient.schema';
 import { DoctorProfileModule } from '../doctor-profile/doctor-profile.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Patient.name, schema: PatientSchema },
+    ]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'asdasdasdasdasdsa',

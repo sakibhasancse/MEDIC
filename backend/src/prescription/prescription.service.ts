@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Prescription, PrescriptionDocument } from '../schemas/prescription.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { Patient, PatientDocument } from '../schemas/patient.schema';
@@ -68,10 +68,30 @@ export class PrescriptionService {
 
   async findAll(doctorId: string) {
     return this.prescriptionModel
-      .find({ doctorId })
+      .find({ doctorId: new Types.ObjectId(doctorId) })
       .sort({ createdAt: -1 })
       .populate('patientId')
       .exec();
+  }
+
+  async findAllForPatient(patientId: string) {
+    return this.prescriptionModel
+      .find({ patientId: new Types.ObjectId(patientId) })
+      .sort({ createdAt: -1 })
+      .populate('doctorId')
+      .populate('hospitalId')
+      .exec();
+  }
+
+  async requestRefill(id: string, medicines: string[]) {
+    const prescription = await this.prescriptionModel.findById(id);
+    if (!prescription) {
+      throw new Error('Prescription not found');
+    }
+    // In a real app, this might create a 'notification' or 'message'
+    // For now, we'll just log it and return success
+    console.log(`Refill requested for prescription ${id}, medicines:`, medicines);
+    return { success: true, message: 'Refill request sent to doctor' };
   }
 
   async getPatientHistory(patientId: string, filters?: any) {

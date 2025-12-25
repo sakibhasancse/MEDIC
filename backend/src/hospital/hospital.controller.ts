@@ -3,10 +3,15 @@ import { HospitalService } from './hospital.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('hospitals')
-@UseGuards(JwtAuthGuard)
 export class HospitalController {
   constructor(private hospitalService: HospitalService) { }
 
+  @Get('public/list')
+  async listPublic() {
+    return this.hospitalService.listAllPublic();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getAll(@Request() req) {
     return this.hospitalService.findAll(req.user.userId);

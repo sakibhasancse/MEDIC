@@ -1,0 +1,218 @@
+/* Import Bangla font */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0891B2;
+  --primary-light: #06B6D4;
+  --primary-dark: #0E7490;
+  --accent: #F59E0B;
+  --success: #10B981;
+  --error: #EF4444;
+  --background: #F9FAFB;
+  --surface: #FFFFFF;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Bangla language support */
+[lang="bn"],
+.bn {
+  font-family: 'Noto Sans Bengali', 'Inter', sans-serif;
+  font-size: 1.05em;
+  line-height: 1.6;
+}
+
+/* Card hover animation */
+@keyframes cardHover {
+  from {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  to {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Skeleton loader animation */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #F3F4F6 0px, #E5E7EB 40px, #F3F4F6 80px);
+  background-size: 800px 104px;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Utility classes */
+.card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:active {
+  transform: scale(0.98);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-synced {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.status-pending {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.status-offline {
+  background-color: #F3F4F6;
+  color: #374151;
+}
+
+.status-failed {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+/* Mobile bottom nav spacing */
+.mobile-bottom-nav-spacer {
+  height: 64px;
+}
+
+/* Container max width */
+.container-max {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 768px) {
+  .container-max {
+    padding: 0 24px;
+  }
+}
+
+/* Grid layouts */
+.grid-cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .grid-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

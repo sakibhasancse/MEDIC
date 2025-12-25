@@ -20,6 +20,9 @@ import { GlobalHospitalModule } from './global-hospital/global-hospital.module';
 import { DoctorProfileModule } from './doctor-profile/doctor-profile.module';
 
 import { UploadModule } from './upload/upload.module';
+import { AppointmentsModule } from './appointments/appointments.module';
+import { MessagesModule } from './messages/messages.module';
+import { MedicalHistoryModule } from './medical-history/medical-history.module';
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import { UploadModule } from './upload/upload.module';
     GlobalHospitalModule,
     DoctorProfileModule,
     UploadModule,
+    AppointmentsModule,
+    MessagesModule,
+    MedicalHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

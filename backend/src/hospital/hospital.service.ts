@@ -112,4 +112,7 @@ export class HospitalService {
       { new: true }
     );
   }
+  async listAllPublic() {
+    return this.hospitalModel.find().select('name address phone email logo doctorId').exec();
+  }
 }

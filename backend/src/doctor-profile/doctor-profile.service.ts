@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { DoctorProfile, DoctorProfileDocument } from '../schemas/doctor-profile.schema';
 
 @Injectable()
@@ -30,5 +30,10 @@ export class DoctorProfileService {
 
   async findByUserId(userId: string): Promise<DoctorProfile | null> {
     return this.doctorProfileModel.findOne({ userId }).exec();
+  }
+
+  async listAllPublic(userId?: string) {
+    const filter = userId ? { userId: new Types.ObjectId(userId) } : {};
+    return this.doctorProfileModel.find(filter).exec();
   }
 }

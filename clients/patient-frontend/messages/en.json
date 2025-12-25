@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "Patient Portal",
+    "dashboard": "Dashboard",
+    "prescriptions": "Prescriptions",
+    "appointments": "Appointments",
+    "messages": "Messages",
+    "profile": "Profile",
+    "history": "Medical History",
+    "logout": "Logout",
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "confirm": "Confirm",
+    "continue": "Continue"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "quickActions": "Quick Actions",
+    "bookAppointment": "Book Appointment",
+    "viewPrescriptions": "View Prescriptions",
+    "upcomingAppointments": "Upcoming Appointments",
+    "medicineReminders": "Medicine Reminders",
+    "recentPrescriptions": "Recent Prescriptions",
+    "seeAll": "See All",
+    "noAppointments": "No upcoming appointments",
+    "noReminders": "No medicines to take right now"
+  },
+  "appointments": {
+    "title": "My Appointments",
+    "bookNew": "Book New Appointment",
+    "past": "Past Appointments",
+    "upcoming": "Upcoming",
+    "date": "Date",
+    "time": "Time",
+    "doctor": "Doctor",
+    "clinic": "Clinic",
+    "visitType": "Visit Type",
+    "status": "Status",
+    "online": "Online Consultation",
+    "physical": "Physical Visit"
+  },
+  "booking": {
+    "title": "Book Appointment",
+    "steps": {
+      "clinic": "Select Clinic",
+      "doctor": "Choose Doctor",
+      "type": "Visit Type",
+      "datetime": "Date & Time",
+      "confirm": "Confirm"
+    },
+    "selectClinic": "Select a Clinic",
+    "selectDoctor": "Choose a Doctor",
+    "selectType": "Select Visit Type",
+    "selectDate": "Select Date & Time",
+    "confirmDetails": "Confirm Appointment Details",
+    "success": "Appointment booked successfully!"
+  },
+  "prescriptions": {
+    "title": "My Prescriptions",
+    "search": "Search prescriptions...",
+    "download": "Download PDF",
+    "refill": "Request Refill",
+    "medicines": "Medicines",
+    "advice": "Advice",
+    "tests": "Tests",
+    "diagnosis": "Diagnosis"
+  },
+  "messages": {
+    "title": "Messages",
+    "subtitle": "Chat with your healthcare providers",
+    "noMessages": "No messages yet",
+    "startChat": "Start a conversation with your doctor",
+    "typeMessage": "Type a message...",
+    "send": "Send"
+  },
+  "profile": {
+    "title": "My Profile",
+    "subtitle": "Manage your personal and health information",
+    "personalInfo": "Personal Information",
+    "healthInfo": "Health Information",
+    "fullName": "Full Name",
+    "phone": "Phone Number",
+    "age": "Age",
+    "gender": "Gender",
+    "bloodGroup": "Blood Group",
+    "allergies": "Allergies",
+    "chronicDiseases": "Chronic Diseases"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "phone": "Phone Number",
+    "password": "Password",
+    "otp": "OTP"
+  }
+}

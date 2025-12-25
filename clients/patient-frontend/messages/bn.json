@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "পেশেন্ট পোর্টাল",
+    "dashboard": "ড্যাশবোর্ড",
+    "prescriptions": "প্রেসক্রিপশন",
+    "appointments": "অ্যাপয়েন্টমেন্ট",
+    "messages": "মেসেজ",
+    "profile": "প্রোফাইল",
+    "history": "মেডিকেল হিস্ট্রি",
+    "logout": "লগআউট",
+    "loading": "লোড হচ্ছে...",
+    "error": "ত্রুটি",
+    "save": "সংরক্ষণ",
+    "cancel": "বাতিল",
+    "back": "ফিরে যান",
+    "confirm": "নিশ্চিত করুন",
+    "continue": "চালিয়ে যান"
+  },
+  "dashboard": {
+    "welcome": "স্বাগতম",
+    "quickActions": "দ্রুত পদক্ষেপ",
+    "bookAppointment": "অ্যাপয়েন্টমেন্ট বুক করুন",
+    "viewPrescriptions": "প্রেসক্রিপশন দেখুন",
+    "upcomingAppointments": "আসন্ন অ্যাপয়েন্টমেন্ট",
+    "medicineReminders": "ঔষধের রিমাইন্ডার",
+    "recentPrescriptions": "সাম্প্রতিক প্রেসক্রিপশন",
+    "seeAll": "সব দেখুন",
+    "noAppointments": "কোন আসন্ন অ্যাপয়েন্টমেন্ট নেই",
+    "noReminders": "এখন কোন ঔষধ সেবনের সময় নেই"
+  },
+  "appointments": {
+    "title": "আমার অ্যাপয়েন্টমেন্ট",
+    "bookNew": "নতুন অ্যাপয়েন্টমেন্ট বুক করুন",
+    "past": "পূর্ববর্তী অ্যাপয়েন্টমেন্ট",
+    "upcoming": "আসন্ন",
+    "date": "তারিখ",
+    "time": "সময়",
+    "doctor": "ডাক্তার",
+    "clinic": "ক্লিনিক",
+    "visitType": "ভিজিটের ধরন",
+    "status": "অবস্থা",
+    "online": "অনলাইন পরামর্শ",
+    "physical": "সরাসরি সাক্ষাৎ"
+  },
+  "booking": {
+    "title": "অ্যাপয়েন্টমেন্ট বুকিং",
+    "steps": {
+      "clinic": "ক্লিনিক নির্বাচন",
+      "doctor": "ডাক্তার নির্বাচন",
+      "type": "ভিজিটের ধরন",
+      "datetime": "তারিখ ও সময়",
+      "confirm": "নিশ্চিতকরণ"
+    },
+    "selectClinic": "একটি ক্লিনিক নির্বাচন করুন",
+    "selectDoctor": "একজন ডাক্তার নির্বাচন করুন",
+    "selectType": "ভিজিটের ধরন নির্বাচন করুন",
+    "selectDate": "তারিখ ও সময় নির্বাচন করুন",
+    "confirmDetails": "অ্যাপয়েন্টমেন্টের বিবরণ নিশ্চিত করুন",
+    "success": "অ্যাপয়েন্টমেন্ট সফলভাবে বুক করা হয়েছে!"
+  },
+  "prescriptions": {
+    "title": "আমার প্রেসক্রিপশন",
+    "search": "প্রেসক্রিপশন খুঁজুন...",
+    "download": "PDF ডাউনলোড",
+    "refill": "রিফিল অনুরোধ",
+    "medicines": "ঔষধ",
+    "advice": "পরামর্শ",
+    "tests": "টেস্ট",
+    "diagnosis": "রোগ নির্ণয়"
+  },
+  "messages": {
+    "title": "মেসেজ",
+    "subtitle": "আপনার ডাক্তারের সাথে কথা বলুন",
+    "noMessages": "কোন মেসেজ নেই",
+    "startChat": "ডাক্তারের সাথে চ্যাট শুরু করুন",
+    "typeMessage": "মেসেজ লিখুন...",
+    "send": "পাঠান"
+  },
+  "profile": {
+    "title": "আমার প্রোফাইল",
+    "subtitle": "ব্যক্তিগত এবং স্বাস্থ্য তথ্য ব্যবস্থাপনা",
+    "personalInfo": "ব্যক্তিগত তথ্য",
+    "healthInfo": "স্বাস্থ্য তথ্য",
+    "fullName": "পুরো নাম",
+    "phone": "ফোন নম্বর",
+    "age": "বয়স",
+    "gender": "লিঙ্গ",
+    "bloodGroup": "রক্তের গ্রুপ",
+    "allergies": "এলার্জি",
+    "chronicDiseases": "দীর্ঘস্থায়ী রোগ"
+  },
+  "auth": {
+    "login": "লগইন",
+    "register": "নিবন্ধন",
+    "phone": "ফোন নম্বর",
+    "password": "পাসওয়ার্ড",
+    "otp": "ওটিপি"
+  }
+}

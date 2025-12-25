@@ -8,6 +8,12 @@ export class Patient {
   @Prop({ required: true })
   name: string;
 
+  @Prop({ required: false, unique: true, index: true })
+  email: string;
+
+  @Prop({ required: true })
+  password: string;
+
   @Prop({ required: true, index: true })
   phone: string;
 
@@ -29,7 +35,7 @@ export class Patient {
   @Prop()
   bloodGroup: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', index: true })
   doctorId: Types.ObjectId;
 }
 

@@ -6,11 +6,13 @@ import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from '../schemas/user.schema';
 
 import { DoctorProfileService } from '../doctor-profile/doctor-profile.service';
+import { Patient, PatientDocument } from '../schemas/patient.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Patient.name) private patientModel: Model<PatientDocument>,
     private jwtService: JwtService,
     private doctorProfileService: DoctorProfileService,
   ) { }
@@ -95,5 +97,44 @@ export class AuthService {
       { new: true }
     ).select('-password');
     return user;
+  }
+  
+  async patientRegister(data: any) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const patient = new this.patientModel({
+      ...data,
+      password: hashedPassword,
+    });
+    await patient.save();
+
+    const payload = { phone: patient.phone, sub: patient._id, role: 'patient' };
+    const { password: _, ...patientData } = patient.toObject();
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        ...patientData,
+        id: patient._id,
+      },
+    };
+  }
+
+  async patientLogin(phone: string, password: string) {
+    const patient = await this.patientModel.findOne({ phone });
+    if (!patient) throw new Error('Invalid credentials');
+
+    const isValid = await bcrypt.compare(password, patient.password);
+    if (!isValid) throw new Error('Invalid credentials');
+
+    const payload = { phone: patient.phone, sub: patient._id, role: 'patient' };
+    const { password: __, ...patientData } = patient.toObject();
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        ...patientData,
+        id: patient._id,
+      },
+    };
   }
 }

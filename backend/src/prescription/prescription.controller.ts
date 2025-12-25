@@ -15,9 +15,15 @@ export class PrescriptionController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get()
-  async getAll(@Request() req) {
-    return this.prescriptionService.findAll(req.user.userId);
+  @Get('patient')
+  async getAllForPatient(@Request() req) {
+    return this.prescriptionService.findAllForPatient(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/refill')
+  async requestRefill(@Param('id') id: string, @Body() body: { medicines: string[] }) {
+    return this.prescriptionService.requestRefill(id, body.medicines);
   }
 
   @UseGuards(JwtAuthGuard)
